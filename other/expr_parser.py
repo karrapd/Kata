@@ -7,6 +7,9 @@ class Node:
     def eval(self):
         raise NotImplemented('abstract method')
 
+    def dump(self, indent):
+        raise NotImplemented('abstract method')
+
 
 class OpNode(Node):
     __OPS = {
@@ -25,6 +28,11 @@ class OpNode(Node):
     def eval(self):
         return self.func(self.left.eval(), self.right.eval())
 
+    def dump(self, indent=0):
+        left = self.left.dump(indent+1)
+        right = self.right.dump(indent+1)
+        return '{}{}\n{}\n{}'.format('  '*indent, self.op, left, right)
+
 
 class ConstNode(Node):
     def __init__(self, value):
@@ -32,6 +40,9 @@ class ConstNode(Node):
 
     def eval(self):
         return self.value
+
+    def dump(self, indent=0):
+        return '{}{}'.format('  '*indent, self.value)
 
 
 def tokenize(expr):
@@ -61,21 +72,11 @@ def build_tree(tokens):
     return OpNode(tokens[min_pos], left, right)
 
 
-def print_tree(root, indent=''):
-    if type(root) is OpNode:
-        print('{}{}'.format(indent, root.op))
-        print_tree(root.left, indent + '   ')
-        print_tree(root.right, indent + '   ')
-        return
-
-    print('{}{}'.format(indent, root.value))
-
-
 def main():
     tokens = tokenize(sys.argv[1])
     print(tokens)
     root = build_tree(tokens)
-    print_tree(root)
+    print(root.dump())
     print('result = {:.5f}'.format(root.eval()))
 
 
