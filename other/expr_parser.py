@@ -3,7 +3,7 @@ import sys
 import re
 
 
-class Node:
+class _Node:
     def eval(self):
         raise NotImplemented('abstract method')
 
@@ -11,7 +11,7 @@ class Node:
         raise NotImplemented('abstract method')
 
 
-class OpNode(Node):
+class _OpNode(_Node):
     __OPS = {
         '+': lambda x, y: x+y,
         '-': lambda x, y: x-y,
@@ -34,7 +34,7 @@ class OpNode(Node):
         return '{}{}\n{}\n{}'.format('  '*indent, self.op, left, right)
 
 
-class ConstNode(Node):
+class _ConstNode(_Node):
     def __init__(self, value):
         self.value = value
 
@@ -45,39 +45,47 @@ class ConstNode(Node):
         return '{}{}'.format('  '*indent, self.value)
 
 
-def tokenize(expr):
-    return re.findall(r'(?:\d|\.)+|\*|\+|-|/', expr)
-
-
-def get_priority(token):
-    priorities = {
-        '+': 1,
-        '-': 1,
-        '/': 10,
-        '*': 10,
+class ExpressionTree:
+    __PRIORITIES = {
+        '+': 1,  '-': 1,
+        '/': 10, '*': 10,
     }
-    if token in priorities:
-        return priorities[token]
-    return 1000
 
+    def __init__(self, expr):
+        self.__root = self.__build(expr)
 
-def build_tree(tokens):
-    if len(tokens) == 1:
-        return ConstNode(float(tokens[0]))
+    def __tokenize(self, expr):
+        return re.findall(r'(?:\d|\.)+|\*|\+|-|/', expr)
 
-    prios = [get_priority(t) for t in tokens]
-    min_pos, _ = min(enumerate(prios), key=lambda x: x[1])
-    left = build_tree(tokens[:min_pos])
-    right = build_tree(tokens[min_pos+1:])
-    return OpNode(tokens[min_pos], left, right)
+    def __parse(self, tokens):
+        # assuming expressions are always valid, if there's just one elem, it must be a constant
+        if len(tokens) == 1:
+            return _ConstNode(float(tokens[0]))
+
+        prios = [self.__PRIORITIES.get(t, 1000) for t in tokens]
+        min_pos, _ = min(enumerate(prios), key=lambda x: x[1])
+
+        return _OpNode(
+            tokens[min_pos],
+            self.__parse(tokens[:min_pos]),
+            self.__parse(tokens[min_pos+1:])
+        )
+
+    def __build(self, expr):
+        tokens = self.__tokenize(expr)
+        return self.__parse(tokens)
+
+    def eval(self):
+        return self.__root.eval()
+
+    def __str__(self):
+        return self.__root.dump()
 
 
 def main():
-    tokens = tokenize(sys.argv[1])
-    print(tokens)
-    root = build_tree(tokens)
-    print(root.dump())
-    print('result = {:.5f}'.format(root.eval()))
+    tree = ExpressionTree(sys.argv[1])
+    print('TREE:\n{}'.format(tree))
+    print('result = {:.5f}'.format(tree.eval()))
 
 
 if __name__ == '__main__':
