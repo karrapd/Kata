@@ -50,9 +50,33 @@ def get_priority(token):
     return 1000
 
 
+def build_tree(tokens):
+    if len(tokens) == 1:
+        return ConstNode(float(tokens[0]))
+
+    prios = [get_priority(t) for t in tokens]
+    min_pos, _ = min(enumerate(prios), key=lambda x: x[1])
+    left = build_tree(tokens[:min_pos])
+    right = build_tree(tokens[min_pos+1:])
+    return OpNode(tokens[min_pos], left, right)
+
+
+def print_tree(root, indent=''):
+    if type(root) is OpNode:
+        print('{}{}'.format(indent, root.op))
+        print_tree(root.left, indent + '   ')
+        print_tree(root.right, indent + '   ')
+        return
+
+    print('{}{}'.format(indent, root.value))
+
+
 def main():
     tokens = tokenize(sys.argv[1])
     print(tokens)
+    root = build_tree(tokens)
+    print_tree(root)
+    print('result = {:.5f}'.format(root.eval()))
 
 
 if __name__ == '__main__':
