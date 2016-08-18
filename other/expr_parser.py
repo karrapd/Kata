@@ -48,8 +48,7 @@ class _ConstNode(_Node):
 class ExpressionTree:
     __PRIORITIES = {
         '+': 1,  '-': 1,
-        '/': 10, '*': 10,
-        '(': 3, ')': 3
+        '/': 10, '*': 10
     }
 
     def __init__(self, expr):
@@ -59,7 +58,6 @@ class ExpressionTree:
         return re.findall(r'(?:\d|\.)+|\*|\+|-|/|\)|\(', expr)
 
     def __assign_priorities(self, tokens):
-
 
         prios = []
         noparen_tokens = []
@@ -91,9 +89,9 @@ class ExpressionTree:
 
     def __build(self, expr):
         tokens = self.__tokenize(expr)
-        list_tok_prio = self.__assign_priorities(tokens)
-        print list_tok_prio
-        return self.__parse(list_tok_prio)
+        tokens_prios = self.__assign_priorities(tokens)
+        print tokens_prios
+        return self.__parse(tokens_prios)
 
     def eval(self):
         return self.__root.eval()
