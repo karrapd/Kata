@@ -72,7 +72,7 @@ class ExpressionTree:
                 prios.append(prio_offset + self.__PRIORITIES.get(t, 1000))
                 noparen_tokens.append(t)
 
-        return zip(noparen_tokens, prios)
+        return list(zip(noparen_tokens, prios))
 
     def __parse(self, toks_prios):
         # assuming expressions are always valid, if there's just one elem, it must be a constant
@@ -90,7 +90,6 @@ class ExpressionTree:
     def __build(self, expr):
         tokens = self.__tokenize(expr)
         tokens_prios = self.__assign_priorities(tokens)
-        print tokens_prios
         return self.__parse(tokens_prios)
 
     def eval(self):
