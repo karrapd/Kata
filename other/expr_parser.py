@@ -49,31 +49,51 @@ class ExpressionTree:
     __PRIORITIES = {
         '+': 1,  '-': 1,
         '/': 10, '*': 10,
+        '(': 3, ')': 3
     }
 
     def __init__(self, expr):
         self.__root = self.__build(expr)
 
     def __tokenize(self, expr):
-        return re.findall(r'(?:\d|\.)+|\*|\+|-|/', expr)
+        return re.findall(r'(?:\d|\.)+|\*|\+|-|/|\)|\(', expr)
 
-    def __parse(self, tokens):
+    def __assign_priorities(self, tokens):
+
+
+        prios = []
+        noparen_tokens = []
+        prio_offset = 0
+
+        for t in tokens:
+            if t == '(':
+                prio_offset += 50
+            elif t == ')':
+                prio_offset -= 50
+            else:
+                prios.append(prio_offset + self.__PRIORITIES.get(t, 1000))
+                noparen_tokens.append(t)
+
+        return zip(noparen_tokens, prios)
+
+    def __parse(self, toks_prios):
         # assuming expressions are always valid, if there's just one elem, it must be a constant
-        if len(tokens) == 1:
-            return _ConstNode(float(tokens[0]))
+        if len(toks_prios) == 1:
+            return _ConstNode(float(toks_prios[0][0]))
 
-        prios = [self.__PRIORITIES.get(t, 1000) for t in tokens]
-        min_pos, _ = min(enumerate(prios), key=lambda x: x[1])
+        min_pos, _ = min(enumerate(toks_prios), key=lambda x: x[1][1])
 
         return _OpNode(
-            tokens[min_pos],
-            self.__parse(tokens[:min_pos]),
-            self.__parse(tokens[min_pos+1:])
+            toks_prios[min_pos][0],
+            self.__parse(toks_prios[:min_pos]),
+            self.__parse(toks_prios[min_pos + 1:])
         )
 
     def __build(self, expr):
         tokens = self.__tokenize(expr)
-        return self.__parse(tokens)
+        list_tok_prio = self.__assign_priorities(tokens)
+        print list_tok_prio
+        return self.__parse(list_tok_prio)
 
     def eval(self):
         return self.__root.eval()
