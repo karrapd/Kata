@@ -50,6 +50,10 @@ class ExpressionTree:
         '+': 1,  '-': 1,
         '/': 10, '*': 10
     }
+    __PAREN_OFFSETS = {
+        '(': 50,
+        ')': -50
+    }
 
     def __init__(self, expr):
         self.__root = self.__build(expr)
@@ -57,40 +61,41 @@ class ExpressionTree:
     def __tokenize(self, expr):
         return re.findall(r'(?:\d|\.)+|\*|\+|-|/|\)|\(', expr)
 
-    def __assign_priorities(self, tokens):
-
+    def __get_priorities(self, tokens):
         prios = []
-        noparen_tokens = []
         prio_offset = 0
 
         for t in tokens:
-            if t == '(':
-                prio_offset += 50
-            elif t == ')':
-                prio_offset -= 50
-            else:
-                prios.append(prio_offset + self.__PRIORITIES.get(t, 1000))
-                noparen_tokens.append(t)
+            prio_offset += self.__PAREN_OFFSETS.get(t, 0)
+            prios.append(prio_offset + self.__PRIORITIES.get(t, 1000))
 
-        return list(zip(noparen_tokens, prios))
+        return prios
 
-    def __parse(self, toks_prios):
+    def __filter_parens(self, tokens, priorities):
+        '''
+            Filter out any parens along with the priorities in respective positions.
+            Returns: (filtered_tokens, filtered_priorities)
+        '''
+        return list(zip(*[(t, p) for t, p in zip(tokens, priorities) if t not in '()']))
+
+    def __parse(self, tokens, priorities):
         # assuming expressions are always valid, if there's just one elem, it must be a constant
-        if len(toks_prios) == 1:
-            return _ConstNode(float(toks_prios[0][0]))
+        if len(tokens) == 1:
+            return _ConstNode(float(tokens[0]))
 
-        min_pos, _ = min(enumerate(toks_prios), key=lambda x: x[1][1])
+        min_pos, _ = min(enumerate(priorities), key=lambda x: x[1])
 
         return _OpNode(
-            toks_prios[min_pos][0],
-            self.__parse(toks_prios[:min_pos]),
-            self.__parse(toks_prios[min_pos + 1:])
+            tokens[min_pos],
+            self.__parse(tokens[:min_pos], priorities[:min_pos]),
+            self.__parse(tokens[min_pos+1:], priorities[min_pos+1:])
         )
 
     def __build(self, expr):
         tokens = self.__tokenize(expr)
-        tokens_prios = self.__assign_priorities(tokens)
-        return self.__parse(tokens_prios)
+        prios = self.__get_priorities(tokens)
+
+        return self.__parse(*self.__filter_parens(tokens, prios))
 
     def eval(self):
         return self.__root.eval()
