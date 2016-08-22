@@ -55,11 +55,47 @@ class ExpressionTree:
         ')': -50
     }
 
+    __OPERATORS = __PRIORITIES.keys() + __PAREN_OFFSETS.keys()
+
     def __init__(self, expr):
         self.__root = self.__build(expr)
 
     def __tokenize(self, expr):
-        return re.findall(r'(?:\d|\.)+|\*|\+|-|/|\)|\(', expr)
+        state = 'none'
+        tokens = []
+        token_start = 0
+        print expr
+        for i, c in enumerate(expr):
+            if c.isdigit() or c == '.':
+                if state != 'number':
+                    # append the operator or alpha char we've seen
+                    tokens.extend(expr[token_start:i])
+                    token_start = i
+                state = 'number'
+            elif c in self.__OPERATORS:
+                if state != 'operator':
+                    # append the number or alpha char we've seen
+                    tokens.extend(expr[token_start:i])
+                    token_start = i
+                state = 'operator'
+            elif c.isalpha():
+                if state != 'alpha':
+                    # append the number or operator we've seen
+                    tokens.extend(expr[token_start:i])
+                    token_start = i
+                state = 'alpha'
+            else:
+                raise Exception('something went wrong')
+
+        if token_start != len(expr):
+            tokens.append(expr[token_start:])
+
+        for t in tokens:
+            if t.isalpha() and t != '()':
+                tokens[tokens.index(t)] = raw_input('Who is %s:' % t)
+
+        return tokens
+        # return re.findall(r'(?:\d|\.)+|\*|\+|-|/|\)|\(', expr)
 
     def __get_priorities(self, tokens):
         prios = []
@@ -76,7 +112,7 @@ class ExpressionTree:
             Filter out any parens along with the priorities in respective positions.
             Returns: (filtered_tokens, filtered_priorities)
         '''
-        return list(zip(*[(t, p) for t, p in zip(tokens, priorities) if t not in '()']))
+        return list(zip(*[(t, p) for t, p in zip(tokens, priorities) if t not in '()' or '']))
 
     def __parse(self, tokens, priorities):
         # assuming expressions are always valid, if there's just one elem, it must be a constant
@@ -94,7 +130,7 @@ class ExpressionTree:
     def __build(self, expr):
         tokens = self.__tokenize(expr)
         prios = self.__get_priorities(tokens)
-
+        print 'test: {}'.format(*self.__filter_parens(tokens, prios))
         return self.__parse(*self.__filter_parens(tokens, prios))
 
     def eval(self):
