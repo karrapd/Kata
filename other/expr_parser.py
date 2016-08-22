@@ -57,6 +57,11 @@ class ExpressionTree:
 
     __OPERATORS = __PRIORITIES.keys() + __PAREN_OFFSETS.keys()
 
+    __KNOWN_CONSTANTS = {
+        'pi': '3.1416',
+        'e': '2.7182'
+    }
+
     def __init__(self, expr):
         self.__root = self.__build(expr)
 
@@ -92,7 +97,10 @@ class ExpressionTree:
 
         for t in tokens:
             if t.isalpha() and t != '()':
-                tokens[tokens.index(t)] = raw_input('Who is %s:' % t)
+                if t in self.__KNOWN_CONSTANTS:
+                    tokens[tokens.index(t)] = self.__KNOWN_CONSTANTS.get(t)
+                else:
+                    tokens[tokens.index(t)] = raw_input('Who is %s:' % t)
 
         return tokens
         # return re.findall(r'(?:\d|\.)+|\*|\+|-|/|\)|\(', expr)
@@ -130,7 +138,7 @@ class ExpressionTree:
     def __build(self, expr):
         tokens = self.__tokenize(expr)
         prios = self.__get_priorities(tokens)
-        print 'test: {}'.format(*self.__filter_parens(tokens, prios))
+
         return self.__parse(*self.__filter_parens(tokens, prios))
 
     def eval(self):
