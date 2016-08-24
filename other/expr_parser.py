@@ -1,6 +1,6 @@
 
 import sys
-import re
+import math
 
 
 class _Node:
@@ -45,6 +45,27 @@ class _ConstNode(_Node):
         return '{}{}'.format('  '*indent, self.value)
 
 
+class _VarNode(_Node):
+    __KNOWN_CONSTANTS = {
+        'pi': math.pi,
+        'e': math.e
+    }
+
+    def __init__(self, variable):
+        self.variable = variable
+
+        if self.variable in self.__KNOWN_CONSTANTS:
+            self.value = self.__KNOWN_CONSTANTS.get(self.variable)
+        else:
+            self.value = float(raw_input('Who is %s: ' % self.variable))
+
+    def eval(self):
+        return self.value
+
+    def dump(self, indent=0):
+        return '{}{}'.format('  '*indent, self.value)
+
+
 class ExpressionTree:
     __PRIORITIES = {
         '+': 1,  '-': 1,
@@ -55,13 +76,6 @@ class ExpressionTree:
         ')': -50
     }
 
-    __OPERATORS = __PRIORITIES.keys() + __PAREN_OFFSETS.keys()
-
-    __KNOWN_CONSTANTS = {
-        'pi': '3.1416',
-        'e': '2.7182'
-    }
-
     def __init__(self, expr):
         self.__root = self.__build(expr)
 
@@ -70,37 +84,40 @@ class ExpressionTree:
         tokens = []
         token_start = 0
         print expr
+
         for i, c in enumerate(expr):
             if c.isdigit() or c == '.':
                 if state != 'number':
-                    # append the operator or alpha char we've seen
-                    tokens.extend(expr[token_start:i])
+                    # append the the char we've seen so far
+                    tokens.append(expr[token_start:i])
                     token_start = i
                 state = 'number'
-            elif c in self.__OPERATORS:
+            elif c in '+-*/':
                 if state != 'operator':
-                    # append the number or alpha char we've seen
-                    tokens.extend(expr[token_start:i])
+                    # append the the char we've seen so far
+                    tokens.append(expr[token_start:i])
                     token_start = i
                 state = 'operator'
+            elif c in '()':
+                if state != 'paren':
+                    # append the the char we've seen so far
+                    tokens.append(expr[token_start:i])
+                    token_start = i
             elif c.isalpha():
                 if state != 'alpha':
-                    # append the number or operator we've seen
-                    tokens.extend(expr[token_start:i])
+                    # append the the char we've seen so far
+                    tokens.append(expr[token_start:i])
                     token_start = i
                 state = 'alpha'
             else:
                 raise Exception('something went wrong')
 
+        # for the first element in tokens, both 'token_start' and 'i' have the same value, 0
+        # this is why the first element that is appended to tokens is expr[0:0] = '', which we are deleting below
+        del tokens[0]
+
         if token_start != len(expr):
             tokens.append(expr[token_start:])
-
-        for t in tokens:
-            if t.isalpha() and t != '()':
-                if t in self.__KNOWN_CONSTANTS:
-                    tokens[tokens.index(t)] = self.__KNOWN_CONSTANTS.get(t)
-                else:
-                    tokens[tokens.index(t)] = raw_input('Who is %s:' % t)
 
         return tokens
         # return re.findall(r'(?:\d|\.)+|\*|\+|-|/|\)|\(', expr)
@@ -120,12 +137,16 @@ class ExpressionTree:
             Filter out any parens along with the priorities in respective positions.
             Returns: (filtered_tokens, filtered_priorities)
         '''
-        return list(zip(*[(t, p) for t, p in zip(tokens, priorities) if t not in '()' or '']))
+        return list(zip(*[(t, p) for t, p in zip(tokens, priorities) if t not in '()']))
 
     def __parse(self, tokens, priorities):
+
         # assuming expressions are always valid, if there's just one elem, it must be a constant
         if len(tokens) == 1:
-            return _ConstNode(float(tokens[0]))
+            if tokens[0].isdigit():
+                return _ConstNode(float(tokens[0]))
+            else:
+                return _VarNode(tokens[0])
 
         min_pos, _ = min(enumerate(priorities), key=lambda x: x[1])
 
