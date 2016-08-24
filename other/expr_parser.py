@@ -45,25 +45,19 @@ class _ConstNode(_Node):
         return '{}{}'.format('  '*indent, self.value)
 
 
-class _VarNode(_Node):
-    __KNOWN_CONSTANTS = {
-        'pi': math.pi,
-        'e': math.e
-    }
+class _FuncNode(_Node):
+    pass
 
+
+class _VarNode(_Node):
     def __init__(self, variable):
         self.variable = variable
 
-        if self.variable in self.__KNOWN_CONSTANTS:
-            self.value = self.__KNOWN_CONSTANTS.get(self.variable)
-        else:
-            self.value = float(raw_input('Who is %s: ' % self.variable))
-
     def eval(self):
-        return self.value
+        return float(raw_input('Who is %s: ' % self.variable))
 
     def dump(self, indent=0):
-        return '{}{}'.format('  '*indent, self.value)
+        return '{}{}'.format('  '*indent, self.variable)
 
 
 class ExpressionTree:
@@ -74,6 +68,10 @@ class ExpressionTree:
     __PAREN_OFFSETS = {
         '(': 50,
         ')': -50
+    }
+    __KNOWN_CONSTANTS = {
+        'pi': math.pi,
+        'e': math.e
     }
 
     def __init__(self, expr):
@@ -145,8 +143,9 @@ class ExpressionTree:
         if len(tokens) == 1:
             if tokens[0].isdigit():
                 return _ConstNode(float(tokens[0]))
-            else:
-                return _VarNode(tokens[0])
+            elif tokens[0] in self.__KNOWN_CONSTANTS:
+                return _ConstNode(self.__KNOWN_CONSTANTS.get(tokens[0]))
+            return _VarNode(tokens[0])
 
         min_pos, _ = min(enumerate(priorities), key=lambda x: x[1])
 
