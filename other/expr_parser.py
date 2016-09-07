@@ -46,7 +46,23 @@ class _ConstNode(_Node):
 
 
 class _FuncNode(_Node):
-    pass
+    FUNCTIONS = {
+        'sin': lambda x: math.sin(x),
+        'cos': lambda x: math.cos(x),
+        'tan': lambda x: math.tan(x),
+        'exp': lambda x: math.exp(x)
+    }
+
+    def __init__(self, func_name, child):
+        self.func_name = func_name
+        self.func = self.FUNCTIONS[func_name]
+        self.child = child
+
+    def eval(self):
+        return self.func(self.child.eval())
+
+    def dump(self, indent=0):
+        return '{}{}()\n{}'.format('  ' * indent, self.func_name, self.child.dump(indent+1))
 
 
 class _VarNode(_Node):
@@ -81,9 +97,9 @@ class ExpressionTree:
         state = 'none'
         tokens = []
         token_start = 0
-        print expr
 
-        for i, c in enumerate(expr):
+        for i in range(len(expr)):
+            c = expr[i]
             if c.isdigit() or c == '.':
                 if state != 'number':
                     # append the the char we've seen so far
@@ -97,10 +113,10 @@ class ExpressionTree:
                     token_start = i
                 state = 'operator'
             elif c in '()':
-                if state != 'paren':
-                    # append the the char we've seen so far
-                    tokens.append(expr[token_start:i])
-                    token_start = i
+                # append the the char we've seen so far
+                tokens.append(expr[token_start:i])
+                token_start = i
+                state = 'paren'
             elif c.isalpha():
                 if state != 'alpha':
                     # append the the char we've seen so far
@@ -109,7 +125,6 @@ class ExpressionTree:
                 state = 'alpha'
             else:
                 raise Exception('something went wrong')
-
         # for the first element in tokens, both 'token_start' and 'i' have the same value, 0
         # this is why the first element that is appended to tokens is expr[0:0] = '', which we are deleting below
         del tokens[0]
@@ -118,7 +133,6 @@ class ExpressionTree:
             tokens.append(expr[token_start:])
 
         return tokens
-        # return re.findall(r'(?:\d|\.)+|\*|\+|-|/|\)|\(', expr)
 
     def __get_priorities(self, tokens):
         prios = []
@@ -132,22 +146,52 @@ class ExpressionTree:
 
     def __filter_parens(self, tokens, priorities):
         '''
-            Filter out any parens along with the priorities in respective positions.
-            Returns: (filtered_tokens, filtered_priorities)
+        Filter out any parens along with the priorities in respective positions.
+        Returns: (filtered_tokens, filtered_priorities)
         '''
+        for i in range(len(tokens)):
+            paren_count = 1
+            token_count = 0
+            if tokens[i] in _FuncNode.FUNCTIONS:
+                for j in range(i+2, len(tokens)):
+                    if tokens[j] == '(':
+                        paren_count += 1
+                    elif tokens[j] == ')':
+                        paren_count -= 1
+                    else:
+                        token_count +=1
+                    if paren_count == 0:
+                        break
+                tokens[i] = '{}_{}'.format(tokens[i], token_count)
+
+        # TODO: optimize this by including in the prev for -ae
         return list(zip(*[(t, p) for t, p in zip(tokens, priorities) if t not in '()']))
 
     def __parse(self, tokens, priorities):
-
-        # assuming expressions are always valid, if there's just one elem, it must be a constant
+        # assuming expressions are always valid, if there's just one elem, it
+        # must be a constant
+        tok_parts = tokens[0].split('_')
         if len(tokens) == 1:
             if tokens[0].isdigit():
                 return _ConstNode(float(tokens[0]))
             elif tokens[0] in self.__KNOWN_CONSTANTS:
                 return _ConstNode(self.__KNOWN_CONSTANTS.get(tokens[0]))
             return _VarNode(tokens[0])
+        elif tok_parts[0] in _FuncNode.FUNCTIONS and len(tokens) == 1 + int(tok_parts[1]):
+            return _FuncNode(tok_parts[0], self.__parse(tokens[1:], priorities[1:]))
 
-        min_pos, _ = min(enumerate(priorities), key=lambda x: x[1])
+        min_pos = 0
+        min_val = 2**32
+        i = 0
+        while i < len(tokens):
+            tok_parts = tokens[i].split('_')
+            if tok_parts[0] in _FuncNode.FUNCTIONS:
+                i += int(tok_parts[1])
+
+            if priorities[i] < min_val:
+                min_val = priorities[i]
+                min_pos = i
+            i += 1
 
         return _OpNode(
             tokens[min_pos],
@@ -158,7 +202,7 @@ class ExpressionTree:
     def __build(self, expr):
         tokens = self.__tokenize(expr)
         prios = self.__get_priorities(tokens)
-
+        print self.__filter_parens(tokens, prios)
         return self.__parse(*self.__filter_parens(tokens, prios))
 
     def eval(self):
