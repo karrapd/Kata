@@ -3,6 +3,10 @@ import sys
 import math
 
 
+class ExprException(Exception):
+    pass
+
+
 class _Node:
     def eval(self):
         raise NotImplemented('abstract method')
@@ -50,19 +54,27 @@ class _FuncNode(_Node):
         'sin': lambda x: math.sin(x),
         'cos': lambda x: math.cos(x),
         'tan': lambda x: math.tan(x),
-        'exp': lambda x: math.exp(x)
+        'exp': lambda x: math.exp(x),
+        'log': lambda x, y: math.log(x, y)
     }
 
-    def __init__(self, func_name, child):
+    def __init__(self, func_name, children):
         self.func_name = func_name
         self.func = self.FUNCTIONS[func_name]
-        self.child = child
+        self.children = children
 
     def eval(self):
-        return self.func(self.child.eval())
+        try:
+            return self.func(*[c.eval() for c in self.children])
+        except TypeError:
+            raise ExprException('{}: function arity is wrong'.format(self.func_name))
 
     def dump(self, indent=0):
-        return '{}{}()\n{}'.format('  ' * indent, self.func_name, self.child.dump(indent+1))
+        return '{}{}()\n{}'.format(
+            '  ' * indent,
+            self.func_name,
+            '\n'.join(c.dump(indent+1) for c in self.children)
+        )
 
 
 class _VarNode(_Node):
@@ -112,7 +124,7 @@ class ExpressionTree:
                     tokens.append(expr[token_start:i])
                     token_start = i
                 state = 'operator'
-            elif c in '()':
+            elif c in '(),':
                 # append the the char we've seen so far
                 tokens.append(expr[token_start:i])
                 token_start = i
@@ -165,9 +177,10 @@ class ExpressionTree:
                 tokens[i] = '{}_{}'.format(tokens[i], token_count)
 
         # TODO: optimize this by including in the prev for -ae
-        return list(zip(*[(t, p) for t, p in zip(tokens, priorities) if t not in '()']))
+        return list(map(list, zip(*[(t, p) for t, p in zip(tokens, priorities) if t not in '()'])))
 
     def __parse(self, tokens, priorities):
+        print tokens
         # assuming expressions are always valid, if there's just one elem, it
         # must be a constant
         tok_parts = tokens[0].split('_')
@@ -178,7 +191,25 @@ class ExpressionTree:
                 return _ConstNode(self.__KNOWN_CONSTANTS.get(tokens[0]))
             return _VarNode(tokens[0])
         elif tok_parts[0] in _FuncNode.FUNCTIONS and len(tokens) == 1 + int(tok_parts[1]):
-            return _FuncNode(tok_parts[0], self.__parse(tokens[1:], priorities[1:]))
+            # split tokens by ',' and then send children as params for FuncNode
+            children = []
+
+            last_comma = 1
+            # NOTE: should not do this as a general practice
+            tokens.append(',')
+            i = 1
+            while i < len(tokens):
+                tok_parts2 = tokens[i].split('_')
+                if tok_parts2[0] in _FuncNode.FUNCTIONS:
+                    i += int(tok_parts2[1]) + 1
+
+                if tokens[i] == ',':
+                    children.append(self.__parse(tokens[last_comma:i], priorities[last_comma:i]))
+                    last_comma = i+1
+
+                i += 1
+
+            return _FuncNode(tok_parts[0], children)
 
         min_pos = 0
         min_val = 2**32
@@ -202,7 +233,6 @@ class ExpressionTree:
     def __build(self, expr):
         tokens = self.__tokenize(expr)
         prios = self.__get_priorities(tokens)
-        print self.__filter_parens(tokens, prios)
         return self.__parse(*self.__filter_parens(tokens, prios))
 
     def eval(self):
