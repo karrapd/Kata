@@ -158,9 +158,12 @@ class ExpressionTree:
 
     def __filter_parens(self, tokens, priorities):
         '''
+        If tokens contain functions, determine arity.
         Filter out any parens along with the priorities in respective positions.
         Returns: (filtered_tokens, filtered_priorities)
         '''
+        tokens_list = []
+        priorities_list = []
         for i in range(len(tokens)):
             paren_count = 1
             token_count = 0
@@ -171,16 +174,17 @@ class ExpressionTree:
                     elif tokens[j] == ')':
                         paren_count -= 1
                     else:
-                        token_count +=1
+                        token_count += 1
                     if paren_count == 0:
                         break
                 tokens[i] = '{}_{}'.format(tokens[i], token_count)
+            if tokens[i] not in '()':
+                tokens_list.append(tokens[i])
+                priorities_list.append(priorities[i])
 
-        # TODO: optimize this by including in the prev for -ae
-        return list(map(list, zip(*[(t, p) for t, p in zip(tokens, priorities) if t not in '()'])))
+        return map(list, zip(*[(t, p) for t, p in zip(tokens_list, priorities_list)]))
 
     def __parse(self, tokens, priorities):
-        print tokens
         # assuming expressions are always valid, if there's just one elem, it
         # must be a constant
         tok_parts = tokens[0].split('_')
