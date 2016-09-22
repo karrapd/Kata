@@ -182,7 +182,7 @@ class ExpressionTree:
                 tokens_list.append(tokens[i])
                 priorities_list.append(priorities[i])
 
-        return map(list, zip(*[(t, p) for t, p in zip(tokens_list, priorities_list)]))
+        return (tuples_list, priorities_list)
 
     def __parse(self, tokens, priorities):
         # assuming expressions are always valid, if there's just one elem, it
