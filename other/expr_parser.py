@@ -20,7 +20,8 @@ class _OpNode(_Node):
         '+': lambda x, y: x+y,
         '-': lambda x, y: x-y,
         '*': lambda x, y: x*y,
-        '/': lambda x, y: x/y
+        '/': lambda x, y: x/y,
+        '^': lambda x, y: x**y
     }
 
     def __init__(self, op, left, right):
@@ -91,7 +92,8 @@ class _VarNode(_Node):
 class ExpressionTree:
     __PRIORITIES = {
         '+': 1,  '-': 1,
-        '/': 10, '*': 10
+        '/': 10, '*': 10,
+        '^': 20
     }
     __PAREN_OFFSETS = {
         '(': 50,
@@ -118,7 +120,7 @@ class ExpressionTree:
                     tokens.append(expr[token_start:i])
                     token_start = i
                 state = 'number'
-            elif c in '+-*/':
+            elif c in '+-*/^':
                 if state != 'operator':
                     # append the the char we've seen so far
                     tokens.append(expr[token_start:i])
