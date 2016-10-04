@@ -1,3 +1,12 @@
+# If you reverse the word emirp you will have the word prime.
+# That idea is related with the purpose of this kata.
+# We should select all the primes that when reversed are a different prime.
+# The palindromic primes should be discarded.
+# E.G: 13, 17 are prime numbers and the reversed respectively are 31, 71 which are also primes, so 13 and 17 are emirps
+# But see the cases, 757, 787, 797, these are palindromic primes, so they do not enter in the sequence.
+# Return: [number of emirps bellow n, largest emirp smaller than n, sum of all the emirps of the sequence bellow n]
+
+
 class Emirps(object):
 
     def __init__(self, n):
