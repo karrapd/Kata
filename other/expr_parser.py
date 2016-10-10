@@ -11,6 +11,9 @@ class _Node:
     def eval(self):
         raise NotImplemented('abstract method')
 
+    def diff(self):
+        raise NotImplemented('abstract method')
+
     def dump(self, indent):
         raise NotImplemented('abstract method')
 
@@ -33,6 +36,9 @@ class _OpNode(_Node):
     def eval(self):
         return self.func(self.left.eval(), self.right.eval())
 
+    def diff(self):
+        return _OpNode(self.op, self.left.diff(), self.right.diff())
+
     def dump(self, indent=0):
         left = self.left.dump(indent+1)
         right = self.right.dump(indent+1)
@@ -45,6 +51,9 @@ class _ConstNode(_Node):
 
     def eval(self):
         return self.value
+
+    def diff(self):
+        return _ConstNode(self.value)
 
     def dump(self, indent=0):
         return '{}{}'.format('  '*indent, self.value)
@@ -70,6 +79,9 @@ class _FuncNode(_Node):
         except TypeError:
             raise ExprException('{}: function arity is wrong'.format(self.func_name))
 
+    def diff(self):
+        return _FuncNode(self.func_name, [c.diff() for c in self.children])
+
     def dump(self, indent=0):
         return '{}{}()\n{}'.format(
             '  ' * indent,
@@ -83,7 +95,10 @@ class _VarNode(_Node):
         self.variable = variable
 
     def eval(self):
-        return float(raw_input('Who is %s: ' % self.variable))
+        return float(input('Who is %s: ' % self.variable))
+
+    def diff(self):
+        return _VarNode(self.variable)
 
     def dump(self, indent=0):
         return '{}{}'.format('  '*indent, self.variable)
@@ -105,7 +120,10 @@ class ExpressionTree:
     }
 
     def __init__(self, expr):
-        self.__root = self.__build(expr)
+        if isinstance(expr, _Node):
+            self.__root = expr
+        else:
+            self.__root = self.__build(expr)
 
     def __tokenize(self, expr):
         state = 'none'
@@ -244,6 +262,9 @@ class ExpressionTree:
     def eval(self):
         return self.__root.eval()
 
+    def diff(self):
+        return ExpressionTree(self.__root.diff())
+
     def __str__(self):
         return self.__root.dump()
 
@@ -251,6 +272,7 @@ class ExpressionTree:
 def main():
     tree = ExpressionTree(sys.argv[1])
     print('TREE:\n{}'.format(tree))
+    print('DIFF_TREE: \n{}'.format(tree.diff()))
     print('result = {:.5f}'.format(tree.eval()))
 
 
