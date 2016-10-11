@@ -8,10 +8,13 @@ class ExprException(Exception):
 
 
 class _Node:
+    def copy(self):
+        raise NotImplemented('abstract method')
+
     def eval(self):
         raise NotImplemented('abstract method')
 
-    def diff(self):
+    def differentiate(self):
         raise NotImplemented('abstract method')
 
     def dump(self, indent):
@@ -36,8 +39,48 @@ class _OpNode(_Node):
     def eval(self):
         return self.func(self.left.eval(), self.right.eval())
 
-    def diff(self):
-        return _OpNode(self.op, self.left.diff(), self.right.diff())
+    def copy(self):
+        return _OpNode(self.op, self.left.copy(), self.right.copy())
+
+    def differentiate(self):
+        if self.op == '+':
+            return _OpNode('+', self.left.differentiate(), self.right.differentiate())
+        elif self.op == '-':
+            return _OpNode('-', self.left.differentiate(), self.right.differentiate())
+        elif self.op == '*':
+            return _OpNode(
+                '+',
+                _OpNode('*', self.left.differentiate(), self.right.copy()),
+                _OpNode('*', self.left.copy(), self.right.differentiate())
+            )
+        elif self.op == '/':
+            return _OpNode(
+               '/',
+               _OpNode(
+                    '-',
+                    _OpNode('*', self.left.differentiate(), self.right.copy()),
+                    _OpNode('*', self.left.copy(), self.right.differentiate())
+                ),
+               _OpNode('*', self.right.copy(), self.right.copy())
+            )
+        elif self.op == '^':
+            return _OpNode(
+                '*',
+                _OpNode('^', self.left.copy(), self.right.copy()),
+                _OpNode(
+                    '+',
+                    _OpNode(
+                        '*',
+                        self.right.differentiate(),
+                        _FuncNode('log', [_ConstNode(math.e), self.left.copy()])
+                    ),
+                    _OpNode(
+                        '/',
+                        _OpNode('*', self.right.copy(), self.left.differentiate()),
+                        self.left.copy()
+                    )
+                )
+            )
 
     def dump(self, indent=0):
         left = self.left.dump(indent+1)
@@ -49,11 +92,14 @@ class _ConstNode(_Node):
     def __init__(self, value):
         self.value = value
 
+    def copy(self):
+        return _ConstNode(self.value)
+
     def eval(self):
         return self.value
 
-    def diff(self):
-        return _ConstNode(self.value)
+    def differentiate(self):
+        return _ConstNode(0)
 
     def dump(self, indent=0):
         return '{}{}'.format('  '*indent, self.value)
@@ -73,14 +119,70 @@ class _FuncNode(_Node):
         self.func = self.FUNCTIONS[func_name]
         self.children = children
 
+    def copy(self):
+        return _FuncNode(self.func_name, [c.copy() for c in self.children])
+
     def eval(self):
         try:
             return self.func(*[c.eval() for c in self.children])
         except TypeError:
             raise ExprException('{}: function arity is wrong'.format(self.func_name))
 
-    def diff(self):
-        return _FuncNode(self.func_name, [c.diff() for c in self.children])
+    def differentiate(self):
+        if self.func_name == 'sin':
+            return _FuncNode('cos', [c.differentiate() for c in self.children])
+        elif self.func_name == 'cos':
+            return _OpNode(
+                '-',
+                _ConstNode(0),
+                _FuncNode('sin', [c.differentiate() for c in self.children])
+            )
+        elif self.func_name == 'tan':
+            return _OpNode(
+                '/',
+                _ConstNode(1),
+                _OpNode(
+                    '^',
+                    _FuncNode('cos', [c.differentiate() for c in self.children]),
+                    _ConstNode(2)
+                )
+            )
+        elif self.func_name == 'exp':
+            return _OpNode(
+                '*',
+                _FuncNode('exp', [c.differentiate() for c in self.children]),
+                self.children[0].differentiate()
+            )
+        elif self.func_name == 'log':
+            return _OpNode(
+                '/',
+                _OpNode(
+                    '-',
+                    _OpNode(
+                        '*',
+                        _FuncNode('log', [_ConstNode(math.e), self.children[1].copy()]),
+                        _OpNode(
+                            '/',
+                            self.children[0].differentiate(),
+                            self.children[0].copy()
+                        )
+                    ),
+                    _OpNode(
+                        '*',
+                        _FuncNode('log', [_ConstNode(math.e), self.children[0].copy()]),
+                        _OpNode(
+                            '/',
+                            self.children[1].differentiate(),
+                            self.children[1].copy()
+                        )
+                    )
+                ),
+                _OpNode(
+                    '^',
+                    _FuncNode('log', [_ConstNode(math.e), self.children[1].copy()]),
+                    _ConstNode(2)
+                )
+            )
 
     def dump(self, indent=0):
         return '{}{}()\n{}'.format(
@@ -94,11 +196,16 @@ class _VarNode(_Node):
     def __init__(self, variable):
         self.variable = variable
 
+    def copy(self):
+        return _VarNode(self.variable)
+
     def eval(self):
         return float(input('Who is %s: ' % self.variable))
 
-    def diff(self):
-        return _VarNode(self.variable)
+    def differentiate(self):
+        if self.variable == 'x':
+            return _ConstNode(1)
+        return _ConstNode(0)
 
     def dump(self, indent=0):
         return '{}{}'.format('  '*indent, self.variable)
@@ -262,8 +369,8 @@ class ExpressionTree:
     def eval(self):
         return self.__root.eval()
 
-    def diff(self):
-        return ExpressionTree(self.__root.diff())
+    def differentiate(self):
+        return ExpressionTree(self.__root.differentiate())
 
     def __str__(self):
         return self.__root.dump()
@@ -272,8 +379,9 @@ class ExpressionTree:
 def main():
     tree = ExpressionTree(sys.argv[1])
     print('TREE:\n{}'.format(tree))
-    print('DIFF_TREE: \n{}'.format(tree.diff()))
-    print('result = {:.5f}'.format(tree.eval()))
+    diff_tree = tree.differentiate()
+    print('differentiate_TREE: \n{}'.format(diff_tree))
+    print('result = {:.5f}'.format(diff_tree.eval()))
 
 
 if __name__ == '__main__':
