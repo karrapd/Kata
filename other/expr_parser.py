@@ -72,7 +72,7 @@ class _OpNode(_Node):
                     _OpNode(
                         '*',
                         self.right.differentiate(),
-                        _FuncNode('log', [_ConstNode(math.e), self.left.copy()])
+                        _FuncNode('log', [self.left.copy(), _ConstNode(math.e)])
                     ),
                     _OpNode(
                         '/',
@@ -160,7 +160,7 @@ class _FuncNode(_Node):
                     '-',
                     _OpNode(
                         '*',
-                        _FuncNode('log', [_ConstNode(math.e), self.children[1].copy()]),
+                        _FuncNode('log', [self.children[1].copy(), _ConstNode(math.e)]),
                         _OpNode(
                             '/',
                             self.children[0].differentiate(),
@@ -169,7 +169,7 @@ class _FuncNode(_Node):
                     ),
                     _OpNode(
                         '*',
-                        _FuncNode('log', [_ConstNode(math.e), self.children[0].copy()]),
+                        _FuncNode('log', [self.children[0].copy(), _ConstNode(math.e)]),
                         _OpNode(
                             '/',
                             self.children[1].differentiate(),
@@ -179,7 +179,7 @@ class _FuncNode(_Node):
                 ),
                 _OpNode(
                     '^',
-                    _FuncNode('log', [_ConstNode(math.e), self.children[1].copy()]),
+                    _FuncNode('log', [self.children[1].copy(), _ConstNode(math.e)]),
                     _ConstNode(2)
                 )
             )
