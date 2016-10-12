@@ -2,6 +2,15 @@
 import sys
 import math
 
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import (
+    QApplication,
+    QWidget, QFrame,
+    QPushButton,
+    QGridLayout
+)
+from PyQt5.QtGui import QPainter, QColor, QPen
+
 
 class ExprException(Exception):
     pass
@@ -376,6 +385,68 @@ class ExpressionTree:
         return self.__root.dump()
 
 
+class MainWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.__init_ui()
+
+    def __init_ui(self):
+        self.resize(1024, 768)
+        self.setWindowTitle('im special')
+
+        graph = Graph()
+        zoom_in_button = QPushButton('zoom in')
+        zoom_in_button.clicked.connect(self.__zoom_in)
+        zoom_out_button = QPushButton('zoom out')
+        zoom_out_button.clicked.connect(self.__zoom_out)
+
+        layout = QGridLayout()
+        layout.setColumnStretch(0, 1)
+        layout.addWidget(graph, 0, 0, 3, 1)
+        layout.addWidget(zoom_in_button, 0, 1)
+        layout.addWidget(zoom_out_button, 1, 1)
+        self.setLayout(layout)
+
+        self.show()
+
+    def keyPressEvent(self, event):
+        # override
+        if event.key() == Qt.Key_Escape:
+            self.close()
+
+    def __zoom_in(self, event):
+        print('zoom in')
+
+    def __zoom_out(self, event):
+        print('zoom out')
+
+
+class Graph(QFrame):
+    def __init__(self):
+        super().__init__()
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        rect = self.contentsRect()
+
+        p.fillRect(rect, QColor(0x99d9ea))
+
+        line_pen = QPen(QColor(0x000000))
+        p.setPen(line_pen)
+        p.drawLine(0, rect.height() // 2, rect.width(), rect.height() // 2)
+        p.drawLine(rect.width() // 2, 0, rect.width() // 2, rect.height())
+
+        func_pen = QPen(QColor(0xff0000))
+        p.setPen(func_pen)
+        for x in range(1, rect.width()):
+            p.drawLine(
+                x-1, int(rect.height() * math.sin((x-1)/20) / 4) + rect.height() // 2,
+                x, int(rect.height() * math.sin(x/20) / 4) + rect.height() // 2
+            )
+
+        p.drawText(10, 10, "this is sparta")
+
+
 def main():
     tree = ExpressionTree(sys.argv[1])
     print('TREE:\n{}'.format(tree))
@@ -384,5 +455,11 @@ def main():
     print('result = {:.5f}'.format(diff_tree.eval()))
 
 
+def gui_main():
+    app = QApplication(sys.argv)
+    w = MainWindow()
+    sys.exit(app.exec_())
+
+
 if __name__ == '__main__':
-    main()
+    gui_main()
