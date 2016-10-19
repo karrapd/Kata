@@ -394,7 +394,7 @@ class MainWindow(QWidget):
         self.resize(1024, 768)
         self.setWindowTitle('im special')
 
-        graph = Graph()
+        self.__graph = Graph()
         zoom_in_button = QPushButton('zoom in')
         zoom_in_button.clicked.connect(self.__zoom_in)
         zoom_out_button = QPushButton('zoom out')
@@ -402,7 +402,7 @@ class MainWindow(QWidget):
 
         layout = QGridLayout()
         layout.setColumnStretch(0, 1)
-        layout.addWidget(graph, 0, 0, 3, 1)
+        layout.addWidget(self.__graph, 0, 0, 3, 1)
         layout.addWidget(zoom_in_button, 0, 1)
         layout.addWidget(zoom_out_button, 1, 1)
         self.setLayout(layout)
@@ -415,19 +415,26 @@ class MainWindow(QWidget):
             self.close()
 
     def __zoom_in(self, event):
-        print('zoom in')
+        self.__graph.zoom_factor += 5
 
     def __zoom_out(self, event):
-        print('zoom out')
+        self.__graph.zoom_factor -= 5
 
 
 class Graph(QFrame):
     def __init__(self):
         super().__init__()
+        self.__zoom_factor = 10.0
+
+    def transform(self, x, y):
+        new_x = self.__zoom_factor * x + self.width() / 2
+        new_y = self.height() / 2 - self.__zoom_factor * y
+        return new_x, new_y
 
     def paintEvent(self, event):
         p = QPainter(self)
         rect = self.contentsRect()
+
 
         p.fillRect(rect, QColor(0x99d9ea))
 
@@ -438,13 +445,22 @@ class Graph(QFrame):
 
         func_pen = QPen(QColor(0xff0000))
         p.setPen(func_pen)
-        for x in range(1, rect.width()):
-            p.drawLine(
-                x-1, int(rect.height() * math.sin((x-1)/20) / 4) + rect.height() // 2,
-                x, int(rect.height() * math.sin(x/20) / 4) + rect.height() // 2
-            )
+        x = -100
+        while x <= 100:
+            p.drawLine(*self.transform(x-1, math.sin(x-1)), *self.transform(x, math.sin(x)))
+            x += 0.1
 
         p.drawText(10, 10, "this is sparta")
+
+    @property
+    def zoom_factor(self):
+        return self.__zoom_factor
+
+    @zoom_factor.setter
+    def zoom_factor(self, value):
+        if value > 0.1:
+            self.__zoom_factor = value
+        self.update()
 
 
 def main():
